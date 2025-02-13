@@ -6,13 +6,14 @@ Currently, we have one component:
 - Button
 - This component has the following props:
   - Type: Blue, White (Can be one of these) 
-  - Text Label: A   ny text string
+  - Text Label: Any text string
 
 Your Task:
 - Interpret the user's prompt and determine what kind of button they want to insert.
 - Look for hints about color and text label in their request.
 - When no specific color is mentioned, analyze the request for real-world references and choose the closest matching color from physical objects or natural phenomena.
 - Figure out a text label for the button, if not provided, use the default text "Click Me"
+- If the user mentions a quantity (e.g., "3 buttons", "five buttons"), include that number in your response
 
 Color Decision Rules:
 1. If user mentions a specific color (like red, navy, mint), use that exact color.
@@ -26,9 +27,10 @@ Example: If user says "like the morning sky", think about the actual color you s
   - Grass, leaves, plants → green
   - Dense forest, pine trees → forest
 
-Your Responce format(Important! Strictly Follow This Format!):
+Your Response format(Important! Strictly Follow This Format!):
 1. First see if the color that user wants is matching one of the color's supported as Button type: COLOR|TEXT
 2. If the color that user wants is not matching the Button type: CUSTOM|COLOR_NAME|TEXT
+3. If user specifies a quantity, append it to either format: COLOR|TEXT|QUANTITY or CUSTOM|COLOR_NAME|TEXT|QUANTITY
 
 Examples:
 - User: "I want a blue button" (Your logic should be: "this is one of button types") return: BLUE|Click Me
@@ -36,6 +38,9 @@ Examples:
 - User: "Like burning fire" (Your logic should be: "because fire is naturally red/orange") return: CUSTOM|red|Click Me 
 - User: "Like deep ocean" (Your logic should be: "because deep water appears dark blue") return: CUSTOM|navy|Click Me
 - User: "Like fresh grass" (Your logic should be: "because grass is naturally green") return: CUSTOM|green|Click Me
+- User: "I want 3 blue buttons" return: BLUE|Click Me|3
+- User: "Create five snow style CTAs" return: WHITE|Click Me|5
+- User: "Make two buttons like burning fire" return: CUSTOM|red|Click Me|2
 
 User request: {{userInput}}`;
 
@@ -70,40 +75,44 @@ figma.ui.onmessage = async (msg) => {
                 aiResponse = data.choices[0].message.content;
             }
 
+            // Clean up the AI response
+            let cleanResponse = aiResponse.replace("Response: ", "")
+                .replace("- Supported button types: ", "")
+                .replace(/^\s+|\s+$/g, '');
+
             // Process AI response
             let requestedVariant = "White"; // default
             let buttonText = ""; // empty means use default
             let isCustomColor = false;
             let customColor = "";
+            let quantity = 1;  // Add this line - declare quantity at the top level
 
-            if (!aiResponse.toLowerCase().startsWith("nocolor:")) {
-                // Remove any "Response: " prefix that might be present
-                const cleanResponse = aiResponse.replace("Response: ", "");
-                
+            if (!cleanResponse.toLowerCase().startsWith("nocolor:")) {
                 if (cleanResponse.startsWith("CUSTOM|")) {
                     // Handle custom color format
-                    const [_, color, text] = cleanResponse.split("|");
+                    const [_, color, text, qty] = cleanResponse.split("|");
                     requestedVariant = "Blue";  // We'll use Blue as base for custom colors
                     customColor = color;
                     buttonText = text ? text.trim() : "";
+                    quantity = parseInt(qty) || 1;
                     isCustomColor = true;
                     console.log("Custom color detected:", customColor);
                 } else {
                     // Handle standard Blue/White format
-                    const [color, text] = cleanResponse.split("|");
-                    // Check for explicit "Blue" or "White", otherwise treat as custom
-                    if (color.toLowerCase() === "blue") {
+                    const [color, text, qty] = cleanResponse.split("|");
+                    if (color.toUpperCase() === "BLUE") {
                         requestedVariant = "Blue";
-                    } else if (color.toLowerCase() === "white") {
+                        isCustomColor = false;
+                    } else if (color.toUpperCase() === "WHITE") {
                         requestedVariant = "White";
+                        isCustomColor = false;
                     } else {
-                        // If it's any other color word, treat it as custom
                         requestedVariant = "Blue";
                         customColor = color.toLowerCase();
                         isCustomColor = true;
-                        console.log("Interpreted as custom color:", customColor);
                     }
                     buttonText = text ? text.trim() : "";
+                    quantity = parseInt(qty) || 1;
                 }
 
                 if (buttonText) {
@@ -134,82 +143,93 @@ figma.ui.onmessage = async (msg) => {
                 return;
             }
 
-            const buttonInstance = selectedVariant.createInstance();
-            buttonInstance.x = figma.viewport.center.x;
-            buttonInstance.y = figma.viewport.center.y;
-            figma.currentPage.appendChild(buttonInstance);
+            // Update button creation logic to handle multiple buttons vertically
+            const buttonHeight = 35; // Height of each button
+            const verticalSpacing = 45; // 35px height + 10px gap between buttons
+            const startY = figma.viewport.center.y - ((quantity - 1) * verticalSpacing) / 2;
 
-            // Update button text if AI detected it
-            if (buttonText) {
-                const textLayers = buttonInstance.findAll(
-                    (node) => node.type === "TEXT"
-                );
-                const buttonTextLayer = textLayers.find((t) => t.name === "ButtonLabel");
+            const createdButtons = [];
+            
+            for (let i = 0; i < quantity; i++) {
+                const buttonInstance = selectedVariant.createInstance();
+                buttonInstance.x = figma.viewport.center.x;
+                buttonInstance.y = startY + (i * verticalSpacing);  // Position vertically
+                figma.currentPage.appendChild(buttonInstance);
+                createdButtons.push(buttonInstance);
 
-                if (buttonTextLayer) {
-                    await figma.loadFontAsync(buttonTextLayer.fontName);
-                    buttonTextLayer.characters = buttonText;
-                    console.log("Updated button text to:", buttonText);
+                // Update button text if AI detected it
+                if (buttonText) {
+                    const textLayers = buttonInstance.findAll(
+                        (node) => node.type === "TEXT"
+                    );
+                    const buttonTextLayer = textLayers.find((t) => t.name === "ButtonLabel");
+
+                    if (buttonTextLayer) {
+                        await figma.loadFontAsync(buttonTextLayer.fontName);
+                        buttonTextLayer.characters = buttonText;
+                    }
+                }
+
+                // Apply custom color if specified
+                if (isCustomColor && buttonInstance.type === "INSTANCE") {
+                    const colorMap = {
+                        // Basic colors
+                        red: { r: 1, g: 0, b: 0 },
+                        green: { r: 0, g: 0.8, b: 0 },
+                        blue: { r: 0, g: 0, b: 1 },
+                        yellow: { r: 1, g: 1, b: 0 },
+                        
+                        // Sophisticated variations
+                        navy: { r: 0, g: 0, b: 0.5 },
+                        crimson: { r: 0.86, g: 0.08, b: 0.24 },
+                        teal: { r: 0, g: 0.5, b: 0.5 },
+                        maroon: { r: 0.5, g: 0, b: 0 },
+                        olive: { r: 0.5, g: 0.5, b: 0 },
+                        indigo: { r: 0.29, g: 0, b: 0.51 },
+                        
+                        // Light shades
+                        coral: { r: 1, g: 0.5, b: 0.31 },
+                        lavender: { r: 0.9, g: 0.9, b: 0.98 },
+                        mint: { r: 0.6, g: 1, b: 0.8 },
+                        salmon: { r: 0.98, g: 0.5, b: 0.45 },
+                        
+                        // Dark shades
+                        burgundy: { r: 0.5, g: 0, b: 0.13 },
+                        forest: { r: 0.13, g: 0.55, b: 0.13 },
+                        plum: { r: 0.87, g: 0.63, b: 0.87 },
+                        
+                        // Neutrals
+                        gray: { r: 0.5, g: 0.5, b: 0.5 },
+                        black: { r: 0.2, g: 0.2, b: 0.2 },
+                        brown: { r: 0.65, g: 0.16, b: 0.16 },
+                        beige: { r: 0.96, g: 0.96, b: 0.86 },
+                        
+                        // Vibrant colors
+                        cyan: { r: 0, g: 1, b: 1 },
+                        magenta: { r: 1, g: 0, b: 1 },
+                        lime: { r: 0.2, g: 0.8, b: 0.2 },
+                        violet: { r: 0.93, g: 0.51, b: 0.93 },
+                        turquoise: { r: 0.25, g: 0.88, b: 0.82 },
+                        
+                        // Defaults from before
+                        purple: { r: 0.5, g: 0, b: 0.5 },
+                        orange: { r: 1, g: 0.65, b: 0 },
+                        pink: { r: 1, g: 0.75, b: 0.8 }
+                    };
+                    
+                    const rgbColor = colorMap[customColor.toLowerCase()] || { r: 1, g: 0, b: 0 };
+                    
+                    buttonInstance.fills = [{
+                        type: 'SOLID',
+                        color: rgbColor
+                    }];
                 }
             }
 
-            if (isCustomColor && buttonInstance.type === "INSTANCE") {
-                const colorMap = {
-                    // Basic colors
-                    red: { r: 1, g: 0, b: 0 },
-                    green: { r: 0, g: 0.8, b: 0 },
-                    blue: { r: 0, g: 0, b: 1 },
-                    yellow: { r: 1, g: 1, b: 0 },
-                    
-                    // Sophisticated variations
-                    navy: { r: 0, g: 0, b: 0.5 },
-                    crimson: { r: 0.86, g: 0.08, b: 0.24 },
-                    teal: { r: 0, g: 0.5, b: 0.5 },
-                    maroon: { r: 0.5, g: 0, b: 0 },
-                    olive: { r: 0.5, g: 0.5, b: 0 },
-                    indigo: { r: 0.29, g: 0, b: 0.51 },
-                    
-                    // Light shades
-                    coral: { r: 1, g: 0.5, b: 0.31 },
-                    lavender: { r: 0.9, g: 0.9, b: 0.98 },
-                    mint: { r: 0.6, g: 1, b: 0.8 },
-                    salmon: { r: 0.98, g: 0.5, b: 0.45 },
-                    
-                    // Dark shades
-                    burgundy: { r: 0.5, g: 0, b: 0.13 },
-                    forest: { r: 0.13, g: 0.55, b: 0.13 },
-                    plum: { r: 0.87, g: 0.63, b: 0.87 },
-                    
-                    // Neutrals
-                    gray: { r: 0.5, g: 0.5, b: 0.5 },
-                    black: { r: 0.2, g: 0.2, b: 0.2 },
-                    brown: { r: 0.65, g: 0.16, b: 0.16 },
-                    beige: { r: 0.96, g: 0.96, b: 0.86 },
-                    
-                    // Vibrant colors
-                    cyan: { r: 0, g: 1, b: 1 },
-                    magenta: { r: 1, g: 0, b: 1 },
-                    lime: { r: 0.2, g: 0.8, b: 0.2 },
-                    violet: { r: 0.93, g: 0.51, b: 0.93 },
-                    turquoise: { r: 0.25, g: 0.88, b: 0.82 },
-                    
-                    // Defaults from before
-                    purple: { r: 0.5, g: 0, b: 0.5 },
-                    orange: { r: 1, g: 0.65, b: 0 },
-                    pink: { r: 1, g: 0.75, b: 0.8 }
-                };
-                
-                const rgbColor = colorMap[customColor.toLowerCase()] || { r: 1, g: 0, b: 0 };
-                
-                buttonInstance.fills = [{
-                    type: 'SOLID',
-                    color: rgbColor
-                }];
-            }
-
-            figma.viewport.scrollAndZoomIntoView([buttonInstance]);
-            figma.notify(`Inserted ${requestedVariant.toLowerCase()} button${buttonText ? ` with text "${buttonText}"` : ""}!`);
-            message = `I analyzed your request and inserted a ${requestedVariant.toLowerCase()}${buttonText ? ` with text "${buttonText}"` : ""} button that matches your needs!`;
+            // Update viewport and notification for multiple buttons
+            figma.viewport.scrollAndZoomIntoView(createdButtons);
+            figma.notify(`Inserted ${quantity} ${requestedVariant.toLowerCase()} button${quantity > 1 ? 's' : ''}${buttonText ? ` with text "${buttonText}"` : ""}!`);
+            message = `I analyzed your request and inserted ${quantity} ${requestedVariant.toLowerCase()} button${quantity > 1 ? 's' : ''}${buttonText ? ` with text "${buttonText}"` : ""} that match${quantity === 1 ? 'es' : ''} your needs!`;
             
             figma.ui.postMessage({ type: "response", response: message });
 
