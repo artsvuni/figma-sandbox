@@ -3,58 +3,36 @@ const BUTTON_PROMPT = `
 I'm building an AI-powered Figma Plugin to help quickly create prototypes using predefined components.
 
 Currently, we have one component:
-- Button with two properties:
-  - Type: "Blue" or "White"
+- Button
+- This component has the following props:
+  - Type: Blue, White (Can be one of these) 
   - Text Label: Any text string
 
 Your Task:
 - Interpret the user's prompt and determine what kind of button they want to insert.
 - Look for hints about color and text label in their request.
 - When no specific color is mentioned, analyze the request for real-world references and choose the closest matching color from physical objects or natural phenomena.
+- Figure out a text label for the button, if not provided, use the default text "Click Me"
 
 Color Decision Rules:
 1. If user mentions a specific color (like red, navy, mint), use that exact color.
 2. If user describes a concept, map it to the closest natural/physical color reference:
-
-Natural Elements:
-- Fire, lava, blood → red
-- Sky, shallow ocean, clear water → cyan
-- Deep ocean, night sky → navy
-- Grass, leaves, plants → green
-- Dense forest, pine trees → forest
-- Sand, desert → beige
-- Soil, earth, wood → brown
-- Storm clouds, concrete → gray
-- Coal, night → black
-
-Materials & Objects:
-- Rose petals → crimson
-- Lavender flowers → lavender
-- Fresh mint leaves → mint
-- Salmon fish → salmon
-- Coral reef → coral
-- Plums → plum
-- Oranges, tangerines → orange
-- Lemons → yellow
-- Amethyst, royal robes → purple
-- Wine → burgundy
-
-Weather & Time:
-- Sunset/sunrise → orange or crimson
-- Midday sky → cyan
-- Twilight → indigo
-- Dawn → lavender
-- Storm → gray
-- Night → navy
-
 Always try to think: "What color is this object/concept in the physical world?"
 Example: If user says "like the morning sky", think about the actual color you see in a morning sky.
+- For example:
+  - Fire, lava, blood → red
+  - Sky, shallow ocean, clear water → cyan
+  - Deep ocean, night sky → navy
+  - Grass, leaves, plants → green
+  - Dense forest, pine trees → forest
 
-Response Format (Strictly Follow This Format):
-- For standard colors: COLOR|TEXT
-- For mapped concepts: CUSTOM|COLOR_NAME|TEXT
+Your Responce format(Important! Strictly Follow This Format!):
+1. First see if the color that user wants is matching one of the color's supported as Button type: COLOR|TEXT
+2. If the color that user wants is not matching the Button type: CUSTOM|COLOR_NAME|TEXT
 
 Examples:
+- User: "I want a blue button" → BLUE|Click Me
+- User: "I want a button that remind's me of snow" → WHITE|Click Me
 - User: "Like burning fire" → CUSTOM|red|Click Me (because fire is naturally red/orange)
 - User: "Like deep ocean" → CUSTOM|navy|Click Me (because deep water appears dark blue)
 - User: "Like fresh grass" → CUSTOM|green|Click Me (because grass is naturally green)
