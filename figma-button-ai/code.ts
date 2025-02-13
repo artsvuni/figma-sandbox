@@ -1,3 +1,44 @@
+// Prompt Template
+const BUTTON_PROMPT = `
+I'm building an AI-powered Figma Plugin to help quickly create prototypes using predefined components.
+
+Currently, we have one component:
+- Button with two properties:
+  - Type: "Blue" or "White"
+  - Text Label: Any text string
+
+Your Task:
+- Interpret the user's prompt and determine what kind of button they want to insert.
+- Look for hints about color and text label in their request.
+- If the prompt describes a concept or object (e.g., "a button that looks like water"), infer the closest color:
+  - "Blue" for: water, ocean, sky, night, cold, deep, electric, neon
+  - "White" for: snow, ice, cloud, milk, bright, clean, soft, air
+
+Response Format (Strictly Follow This Format):
+COLOR|TEXT
+- COLOR must be either "Blue" or "White"
+- TEXT is the button label extracted from the prompt
+
+Examples:
+- User prompt: "Add a big blue button that says 'Sign Up'"
+  - Response: Blue|Sign Up
+- User prompt: "Insert a white button with 'Learn More'"
+  - Response: White|Learn More
+- User prompt: "A button that looks like the ocean and says 'Explore'"
+  - Response: Blue|Explore
+- User prompt: "I want a button as bright as snow that says 'Start'"
+  - Response: White|Start
+- User prompt: "I need a checkout button"
+  - Response: Blue|Checkout (Default to Blue if color is unclear)
+
+Important Guidelines:
+- If the prompt does not explicitly mention a color, try to infer it from the context or descriptive words.
+- If there is no clear color hint, default to Blue.
+- If the prompt does not specify button text, use the closest relevant phrase.
+- If the prompt does not mention buttons at all, respond with:
+  - "Sorry, I can only assist with inserting buttons."
+
+User request: {{userInput}}`;
 
 figma.showUI(__html__, { width: 400, height: 500 });
 
@@ -7,11 +48,7 @@ figma.ui.onmessage = async (msg) => {
         console.log("Received message from UI:", msg.prompt);
 
         // Create a more structured prompt
-        const structuredPrompt = `Please respond ONLY in this format: COLOR|TEXT
-Where COLOR is either "Blue" or "White", and TEXT is the button text.
-For example: "Blue|Get Started" or "White|Learn More"
-
-User request: ${msg.prompt}`;
+        const structuredPrompt = BUTTON_PROMPT.replace('{{userInput}}', msg.prompt);
 
         try {
             const response = await fetch("http://localhost:3000/generate", {
