@@ -192,5 +192,47 @@ figma.ui.onmessage = async (msg) => {
         figma.viewport.scrollAndZoomIntoView([buttonInstance]);
         figma.notify(`Inserted ${msg.buttonVariant} button!`);
     }
+
+    if (msg.type === "insert-red-frame") {
+        // First, just find the button component set
+        const buttonComponentSet = figma.root.findOne(
+            (node) => node.type === "COMPONENT_SET" && node.name === "Button"
+        );
+
+        if (!buttonComponentSet) {
+            figma.notify("Button component not found!");
+            return;
+        }
+
+        // Get the Blue variant
+        const blueButton = buttonComponentSet.findChildren(
+            (node) => node.type === "COMPONENT" && node.name.includes("Blue")
+        )[0];
+
+        if (!blueButton) {
+            figma.notify("Blue button variant not found!");
+            return;
+        }
+
+        // Create instance and position it
+        const buttonInstance = blueButton.createInstance();
+        buttonInstance.x = figma.viewport.center.x;
+        buttonInstance.y = figma.viewport.center.y;
+        
+        // Log the entire button structure
+        console.log("Button structure:", buttonInstance);
+        
+        // The button instance itself should be a frame
+        if (buttonInstance.type === "INSTANCE") {
+            buttonInstance.fills = [{
+                type: 'SOLID',
+                color: { r: 1, g: 0, b: 0 }
+            }];
+        }
+        
+        figma.currentPage.appendChild(buttonInstance);
+        figma.viewport.scrollAndZoomIntoView([buttonInstance]);
+        figma.notify("Button inserted!");
+    }
 };
 

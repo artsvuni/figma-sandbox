@@ -62,6 +62,7 @@
     <div class="btn-container">
         <button id="blueButton">Insert Blue Button</button>
         <button id="whiteButton">Insert White Button</button>
+        <button id="redFrameButton">Insert Red Frame</button>
     </div>
 
     <hr>
@@ -92,6 +93,14 @@
         document.getElementById("whiteButton").addEventListener("click", () => {
             const text = document.getElementById("buttonText").value || "Click Me";
             parent.postMessage({ pluginMessage: { type: "insert-button", buttonVariant: "White", buttonText: text } }, "*");
+        });
+
+        document.getElementById("redFrameButton").addEventListener("click", () => {
+            parent.postMessage({ 
+                pluginMessage: { 
+                    type: "insert-red-frame"
+                } 
+            }, "*");
         });
 
         function sendMessage() {
