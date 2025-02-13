@@ -10,22 +10,54 @@ Currently, we have one component:
 Your Task:
 - Interpret the user's prompt and determine what kind of button they want to insert.
 - Look for hints about color and text label in their request.
-- If the prompt describes a concept or object (e.g., "a button that looks like water"), infer the closest color:
-  - "Blue" for: water, ocean, sky, night, cold, deep, electric, neon
-  - "White" for: snow, ice, cloud, milk, bright, clean, soft, air
-- If user specifically requests a custom color (like red, green, purple), respond with:
-  CUSTOM|COLOR_NAME|BUTTON_TEXT
-  Example: "CUSTOM|red|Click Me"
+- When no specific color is mentioned, analyze the request for real-world references and choose the closest matching color from physical objects or natural phenomena.
+
+Color Decision Rules:
+1. If user mentions a specific color (like red, navy, mint), use that exact color.
+2. If user describes a concept, map it to the closest natural/physical color reference:
+
+Natural Elements:
+- Fire, lava, blood → red
+- Sky, shallow ocean, clear water → cyan
+- Deep ocean, night sky → navy
+- Grass, leaves, plants → green
+- Dense forest, pine trees → forest
+- Sand, desert → beige
+- Soil, earth, wood → brown
+- Storm clouds, concrete → gray
+- Coal, night → black
+
+Materials & Objects:
+- Rose petals → crimson
+- Lavender flowers → lavender
+- Fresh mint leaves → mint
+- Salmon fish → salmon
+- Coral reef → coral
+- Plums → plum
+- Oranges, tangerines → orange
+- Lemons → yellow
+- Amethyst, royal robes → purple
+- Wine → burgundy
+
+Weather & Time:
+- Sunset/sunrise → orange or crimson
+- Midday sky → cyan
+- Twilight → indigo
+- Dawn → lavender
+- Storm → gray
+- Night → navy
+
+Always try to think: "What color is this object/concept in the physical world?"
+Example: If user says "like the morning sky", think about the actual color you see in a morning sky.
 
 Response Format (Strictly Follow This Format):
 - For standard colors: COLOR|TEXT
-- For custom colors: CUSTOM|COLOR_NAME|TEXT
+- For mapped concepts: CUSTOM|COLOR_NAME|TEXT
 
 Examples:
-- User: "Add a big blue button that says 'Sign Up'"
-  Response: Blue|Sign Up
-- User: "I want a red button"
-  Response: CUSTOM|red|Click Me
+- User: "Like burning fire" → CUSTOM|red|Click Me (because fire is naturally red/orange)
+- User: "Like deep ocean" → CUSTOM|navy|Click Me (because deep water appears dark blue)
+- User: "Like fresh grass" → CUSTOM|green|Click Me (because grass is naturally green)
 
 User request: {{userInput}}`;
 
@@ -77,11 +109,21 @@ figma.ui.onmessage = async (msg) => {
                     customColor = color;
                     buttonText = text ? text.trim() : "";
                     isCustomColor = true;
+                    console.log("Custom color detected:", customColor);
                 } else {
                     // Handle standard Blue/White format
                     const [color, text] = cleanResponse.split("|");
-                    if (color.toLowerCase().includes("blue")) {
+                    // Check for explicit "Blue" or "White", otherwise treat as custom
+                    if (color.toLowerCase() === "blue") {
                         requestedVariant = "Blue";
+                    } else if (color.toLowerCase() === "white") {
+                        requestedVariant = "White";
+                    } else {
+                        // If it's any other color word, treat it as custom
+                        requestedVariant = "Blue";
+                        customColor = color.toLowerCase();
+                        isCustomColor = true;
+                        console.log("Interpreted as custom color:", customColor);
                     }
                     buttonText = text ? text.trim() : "";
                 }
@@ -134,9 +176,56 @@ figma.ui.onmessage = async (msg) => {
             }
 
             if (isCustomColor && buttonInstance.type === "INSTANCE") {
+                const colorMap = {
+                    // Basic colors
+                    red: { r: 1, g: 0, b: 0 },
+                    green: { r: 0, g: 0.8, b: 0 },
+                    blue: { r: 0, g: 0, b: 1 },
+                    yellow: { r: 1, g: 1, b: 0 },
+                    
+                    // Sophisticated variations
+                    navy: { r: 0, g: 0, b: 0.5 },
+                    crimson: { r: 0.86, g: 0.08, b: 0.24 },
+                    teal: { r: 0, g: 0.5, b: 0.5 },
+                    maroon: { r: 0.5, g: 0, b: 0 },
+                    olive: { r: 0.5, g: 0.5, b: 0 },
+                    indigo: { r: 0.29, g: 0, b: 0.51 },
+                    
+                    // Light shades
+                    coral: { r: 1, g: 0.5, b: 0.31 },
+                    lavender: { r: 0.9, g: 0.9, b: 0.98 },
+                    mint: { r: 0.6, g: 1, b: 0.8 },
+                    salmon: { r: 0.98, g: 0.5, b: 0.45 },
+                    
+                    // Dark shades
+                    burgundy: { r: 0.5, g: 0, b: 0.13 },
+                    forest: { r: 0.13, g: 0.55, b: 0.13 },
+                    plum: { r: 0.87, g: 0.63, b: 0.87 },
+                    
+                    // Neutrals
+                    gray: { r: 0.5, g: 0.5, b: 0.5 },
+                    black: { r: 0.2, g: 0.2, b: 0.2 },
+                    brown: { r: 0.65, g: 0.16, b: 0.16 },
+                    beige: { r: 0.96, g: 0.96, b: 0.86 },
+                    
+                    // Vibrant colors
+                    cyan: { r: 0, g: 1, b: 1 },
+                    magenta: { r: 1, g: 0, b: 1 },
+                    lime: { r: 0.2, g: 0.8, b: 0.2 },
+                    violet: { r: 0.93, g: 0.51, b: 0.93 },
+                    turquoise: { r: 0.25, g: 0.88, b: 0.82 },
+                    
+                    // Defaults from before
+                    purple: { r: 0.5, g: 0, b: 0.5 },
+                    orange: { r: 1, g: 0.65, b: 0 },
+                    pink: { r: 1, g: 0.75, b: 0.8 }
+                };
+                
+                const rgbColor = colorMap[customColor.toLowerCase()] || { r: 1, g: 0, b: 0 };
+                
                 buttonInstance.fills = [{
                     type: 'SOLID',
-                    color: { r: 1, g: 0, b: 0 }  // Red color
+                    color: rgbColor
                 }];
             }
 
