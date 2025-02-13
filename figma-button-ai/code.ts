@@ -6,7 +6,7 @@ Currently, we have one component:
 - Button
 - This component has the following props:
   - Type: Blue, White (Can be one of these) 
-  - Text Label: Any text string
+  - Text Label: A   ny text string
 
 Your Task:
 - Interpret the user's prompt and determine what kind of button they want to insert.
@@ -32,7 +32,7 @@ Your Responce format(Important! Strictly Follow This Format!):
 
 Examples:
 - User: "I want a blue button" → BLUE|Click Me
-- User: "I want a button that remind's me of snow" → WHITE|Click Me
+- User: "Snow style CTA" → WHITE|Click Me
 - User: "Like burning fire" → CUSTOM|red|Click Me (because fire is naturally red/orange)
 - User: "Like deep ocean" → CUSTOM|navy|Click Me (because deep water appears dark blue)
 - User: "Like fresh grass" → CUSTOM|green|Click Me (because grass is naturally green)
