@@ -31,11 +31,11 @@ Your Responce format(Important! Strictly Follow This Format!):
 2. If the color that user wants is not matching the Button type: CUSTOM|COLOR_NAME|TEXT
 
 Examples:
-- User: "I want a blue button" → BLUE|Click Me
-- User: "Snow style CTA" → WHITE|Click Me
-- User: "Like burning fire" → CUSTOM|red|Click Me (because fire is naturally red/orange)
-- User: "Like deep ocean" → CUSTOM|navy|Click Me (because deep water appears dark blue)
-- User: "Like fresh grass" → CUSTOM|green|Click Me (because grass is naturally green)
+- User: "I want a blue button" (Your logic should be: "this is one of button types") return: BLUE|Click Me
+- User: "Snow style CTA" (Your logic should be: "snow is white, so this is one of button types") return: WHITE|Click Me
+- User: "Like burning fire" (Your logic should be: "because fire is naturally red/orange") return: CUSTOM|red|Click Me 
+- User: "Like deep ocean" (Your logic should be: "because deep water appears dark blue") return: CUSTOM|navy|Click Me
+- User: "Like fresh grass" (Your logic should be: "because grass is naturally green") return: CUSTOM|green|Click Me
 
 User request: {{userInput}}`;
 
