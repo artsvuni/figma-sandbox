@@ -13,30 +13,19 @@ Your Task:
 - If the prompt describes a concept or object (e.g., "a button that looks like water"), infer the closest color:
   - "Blue" for: water, ocean, sky, night, cold, deep, electric, neon
   - "White" for: snow, ice, cloud, milk, bright, clean, soft, air
+- If user specifically requests a custom color (like red, green, purple), respond with:
+  CUSTOM|COLOR_NAME|BUTTON_TEXT
+  Example: "CUSTOM|red|Click Me"
 
 Response Format (Strictly Follow This Format):
-COLOR|TEXT
-- COLOR must be either "Blue" or "White"
-- TEXT is the button label extracted from the prompt
+- For standard colors: COLOR|TEXT
+- For custom colors: CUSTOM|COLOR_NAME|TEXT
 
 Examples:
-- User prompt: "Add a big blue button that says 'Sign Up'"
-  - Response: Blue|Sign Up
-- User prompt: "Insert a white button with 'Learn More'"
-  - Response: White|Learn More
-- User prompt: "A button that looks like the ocean and says 'Explore'"
-  - Response: Blue|Explore
-- User prompt: "I want a button as bright as snow that says 'Start'"
-  - Response: White|Start
-- User prompt: "I need a checkout button"
-  - Response: Blue|Checkout (Default to Blue if color is unclear)
-
-Important Guidelines:
-- If the prompt does not explicitly mention a color, try to infer it from the context or descriptive words.
-- If there is no clear color hint, default to Blue.
-- If the prompt does not specify button text, use the closest relevant phrase.
-- If the prompt does not mention buttons at all, respond with:
-  - "Sorry, I can only assist with inserting buttons."
+- User: "Add a big blue button that says 'Sign Up'"
+  Response: Blue|Sign Up
+- User: "I want a red button"
+  Response: CUSTOM|red|Click Me
 
 User request: {{userInput}}`;
 
@@ -74,20 +63,29 @@ figma.ui.onmessage = async (msg) => {
             // Process AI response
             let requestedVariant = "White"; // default
             let buttonText = ""; // empty means use default
+            let isCustomColor = false;
+            let customColor = "";
 
             if (!aiResponse.toLowerCase().startsWith("nocolor:")) {
-                const [color, text] = aiResponse.split("|");
+                // Remove any "Response: " prefix that might be present
+                const cleanResponse = aiResponse.replace("Response: ", "");
                 
-                // Handle color
-                if (color.toLowerCase().includes("blue")) {
-                    requestedVariant = "Blue";
-                } else if (color.toLowerCase().includes("random")) {
-                    requestedVariant = Math.random() < 0.5 ? "Blue" : "White";
-                    console.log("Random color requested, chose:", requestedVariant);
+                if (cleanResponse.startsWith("CUSTOM|")) {
+                    // Handle custom color format
+                    const [_, color, text] = cleanResponse.split("|");
+                    requestedVariant = "Blue";  // We'll use Blue as base for custom colors
+                    customColor = color;
+                    buttonText = text ? text.trim() : "";
+                    isCustomColor = true;
+                } else {
+                    // Handle standard Blue/White format
+                    const [color, text] = cleanResponse.split("|");
+                    if (color.toLowerCase().includes("blue")) {
+                        requestedVariant = "Blue";
+                    }
+                    buttonText = text ? text.trim() : "";
                 }
 
-                // Handle text
-                buttonText = text ? text.trim() : "";
                 if (buttonText) {
                     console.log("AI detected button text:", buttonText);
                 }
@@ -133,6 +131,13 @@ figma.ui.onmessage = async (msg) => {
                     buttonTextLayer.characters = buttonText;
                     console.log("Updated button text to:", buttonText);
                 }
+            }
+
+            if (isCustomColor && buttonInstance.type === "INSTANCE") {
+                buttonInstance.fills = [{
+                    type: 'SOLID',
+                    color: { r: 1, g: 0, b: 0 }  // Red color
+                }];
             }
 
             figma.viewport.scrollAndZoomIntoView([buttonInstance]);
