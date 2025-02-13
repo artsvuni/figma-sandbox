@@ -1,0 +1,8 @@
+{
+  "name": "Figma Button AI",
+  "id": "figma-button-ai",
+  "editorType": ["figma"],
+  "api": "1.0.0",
+  "main": "code.ts",
+  "ui": "ui.html"
+}

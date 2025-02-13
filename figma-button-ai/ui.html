@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Button Inserter</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            text-align: center;
+        }
+        input, button {
+            margin: 10px;
+            padding: 8px;
+            font-size: 14px;
+        }
+        .btn-container {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 10px;
+        }
+        #chat-container {
+            height: 400px;
+            overflow-y: auto;
+            margin-bottom: 10px;
+            padding: 10px;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+        }
+        #input-container {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding: 10px;
+        }
+        #prompt-input {
+            width: 100%;
+            padding: 8px;
+            min-height: 60px;
+            resize: vertical;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            font-family: Arial, sans-serif;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+        .message {
+            margin: 8px 0;
+            padding: 8px;
+            background: #f0f0f0;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+    </style>
+</head>
+<body>
+    <h3>Insert Button</h3>
+    <!-- Manual Insertion -->
+    <input type="text" id="buttonText" placeholder="Enter button text..." />
+    <div class="btn-container">
+        <button id="blueButton">Insert Blue Button</button>
+        <button id="whiteButton">Insert White Button</button>
+    </div>
+
+    <hr>
+
+    <!-- ChatGPT Button Generation -->
+    <h3>Chat with AI!</h3>
+    <div>
+        <div id="input-container">
+            <textarea 
+                id="prompt-input" 
+                placeholder="Type your request here... (e.g., 'Insert a sky-colored button that says Learn More')"
+                rows="3"
+            ></textarea>
+            <button onclick="sendMessage()">Send</button>
+        </div>
+
+        <div id="chat-container">
+            <div id="messages"></div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById("blueButton").addEventListener("click", () => {
+            const text = document.getElementById("buttonText").value || "Click Me";
+            parent.postMessage({ pluginMessage: { type: "insert-button", buttonVariant: "Blue", buttonText: text } }, "*");
+        });
+
+        document.getElementById("whiteButton").addEventListener("click", () => {
+            const text = document.getElementById("buttonText").value || "Click Me";
+            parent.postMessage({ pluginMessage: { type: "insert-button", buttonVariant: "White", buttonText: text } }, "*");
+        });
+
+        function sendMessage() {
+            const input = document.getElementById('prompt-input');
+            const message = input.value.trim();
+            
+            if (message) {
+                parent.postMessage({ 
+                    pluginMessage: { 
+                        type: 'chat',
+                        prompt: message 
+                    }
+                }, '*');
+                
+                input.value = '';
+            }
+        }
+
+        onmessage = (event) => {
+            const msg = event.data.pluginMessage;
+            
+            if (msg.type === 'response') {
+                const messagesDiv = document.getElementById('messages');
+                messagesDiv.innerHTML += `<div class="message">${msg.response}</div>`;
+            }
+        };
+
+        document.getElementById('prompt-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+</html>
