@@ -14,6 +14,7 @@ Your Task:
 - When no specific color is mentioned, analyze the request for real-world references and choose the closest matching color from physical objects or natural phenomena.
 - If there is no indication of number of buttons to insert, assume the user wants 1 button.
 - Figure out a text label for the button, if not provided, use the default text "Click Me"
+- Check if user specifies a target frame (e.g., "in Frame 1", "inside my frame", "to Frame 2")
 
 Color Decision Rules:
 1. If user mentions a specific color (like red, navy, mint), use that exact color.
@@ -33,9 +34,16 @@ Number of Buttons Decision Rules:
 - If user lists colors, assume the number of buttons is the same as the number of colors, use colors listed for each button in your response.
 - If user could define color for surtain number of buttons for example two red and 4 blue (ie insert 2 red and 4 blue buttons), include the number of buttons in your response.
 
+Frame Decision Rules:
+- If user mentions a specific frame (e.g., "in Frame 1", "to Frame 2"), use that frame name
+- If user says "in my frame" or "in the frame", assume they mean "Frame 1"
+- If no frame is mentioned, place buttons on the main canvas
+
 Your Response format(Important! Strictly Follow This Format!):
-1. First see if the colors user wants are matching the supported Button types: COLOR|TEXT
-2. If any color is not matching the Button type: CUSTOM|COLOR1,COLOR2,COLOR3|TEXT
+1. First see if the colors user wants are matching the supported Button types: COLOR|TEXT|FRAME_NAME
+2. If any color is not matching the Button type: CUSTOM|COLOR1,COLOR2,COLOR3|TEXT|FRAME_NAME
+
+Note: If no frame is specified, omit the FRAME_NAME part
 
 Examples:
 - User: "I want a blue button" (Your logic should be: "this is one of button types") return: BLUE|Click Me
@@ -48,6 +56,9 @@ Examples:
 - User: "red, blue, green" return: CUSTOM|red,blue,green|Click Me
 - User: "3 buttons" return: CUSTOM|blue,blue,blue|Click Me
 - User: "3 red and 2 white" return: CUSTOM|red,red,red,white,white|Click Me
+- User: "Add a blue button to Frame 1" return: BLUE|Click Me|Frame 1
+- User: "Insert red and white buttons in Frame 2" return: CUSTOM|red,white|Click Me|Frame 2
+- User: "Place 3 green buttons inside my frame" return: CUSTOM|green,green,green|Click Me|Frame 1
 
 User request: {{userInput}}`;
 
@@ -102,7 +113,7 @@ const colorMap = {
 // First message handler for chat
 figma.ui.onmessage = async (msg) => {
     if (msg.type === "chat") {
-        console.log("Received message from UI:", msg.prompt);
+        console.log("Received message from UI:", msg.prompt);   
 
         // Add these constants at the top of the handler
         const buttonHeight = 35; // Height of each button
@@ -146,95 +157,232 @@ figma.ui.onmessage = async (msg) => {
             if (!cleanResponse.toLowerCase().startsWith("nocolor:")) {
                 if (cleanResponse.startsWith("CUSTOM|")) {
                     // Handle custom color format with multiple colors
-                    const [_, colorStr, text] = cleanResponse.split("|");
+                    const [_, colorStr, text, frameName] = cleanResponse.split("|");
                     colors = colorStr.split(",").map(c => c.trim().toLowerCase());
                     buttonText = text ? text.trim() : "";
                     isCustomColor = true;
                     console.log("Custom colors detected:", colors);
-                } else {
-                    // Handle standard Blue/White format
-                    const [color, text] = cleanResponse.split("|");
-                    colors = [color.toLowerCase()];
-                    buttonText = text ? text.trim() : "";
-                }
 
-                const buttonComponentSet = figma.root.findOne(
-                    (node) => node.type === "COMPONENT_SET" && node.name === "Button"
-                );
-
-                if (!buttonComponentSet) {
-                    figma.notify("Component Set 'Button' not found in the file.");
-                    return;
-                }
-
-                const buttonVariants = buttonComponentSet.findChildren(
-                    (node) => node.type === "COMPONENT"
-                );
-
-                // Calculate starting Y position based on number of colors
-                const startY = figma.viewport.center.y - ((colors.length - 1) * verticalSpacing) / 2;
-                const createdButtons = [];
-
-                // Create one button for each color
-                for (let i = 0; i < colors.length; i++) {
-                    const currentColor = colors[i];
-                    let currentVariant = "Blue"; // default base for custom colors
-
-                    // Check if current color is a supported variant
-                    if (currentColor === "blue") {
-                        currentVariant = "Blue";
-                        isCustomColor = false;
-                    } else if (currentColor === "white") {
-                        currentVariant = "White";
-                        isCustomColor = false;
-                    } else {
-                        isCustomColor = true;
-                    }
-
-                    const selectedVariant = buttonVariants.find((v) =>
-                        v.name.includes(currentVariant)
-                    );
-
-                    if (!selectedVariant) {
-                        figma.notify(`Variant '${currentVariant}' not found.`);
-                        continue;
-                    }
-
-                    const buttonInstance = selectedVariant.createInstance();
-                    buttonInstance.x = figma.viewport.center.x;
-                    buttonInstance.y = startY + (i * verticalSpacing);
-                    figma.currentPage.appendChild(buttonInstance);
-                    createdButtons.push(buttonInstance);
-
-                    // Update button text
-                    if (buttonText) {
-                        const textLayers = buttonInstance.findAll(
-                            (node) => node.type === "TEXT"
+                    // Try to find specified frame if any
+                    let targetFrame = null;
+                    if (frameName) {
+                        targetFrame = figma.root.findOne(
+                            (node) => node.type === "FRAME" && node.name === frameName.trim()
                         );
-                        const buttonTextLayer = textLayers.find((t) => t.name === "ButtonLabel");
-
-                        if (buttonTextLayer) {
-                            await figma.loadFontAsync(buttonTextLayer.fontName);
-                            buttonTextLayer.characters = buttonText;
+                        if (!targetFrame) {
+                            console.log(`Frame "${frameName}" not found, placing on canvas instead`);
                         }
                     }
 
-                    // Apply custom color if needed
-                    if (isCustomColor && buttonInstance.type === "INSTANCE") {
-                        const rgbColor = colorMap[currentColor] || { r: 1, g: 0, b: 0 };
-                        buttonInstance.fills = [{
-                            type: 'SOLID',
-                            color: rgbColor
-                        }];
+                    // Calculate starting position
+                    let startY;
+                    if (targetFrame) {
+                        startY = (targetFrame.height / 2) - ((colors.length - 1) * verticalSpacing) / 2;
+                    } else {
+                        startY = figma.viewport.center.y - ((colors.length - 1) * verticalSpacing) / 2;
                     }
-                }
 
-                // Update viewport and notification
-                if (createdButtons.length > 0) {
-                    figma.viewport.scrollAndZoomIntoView(createdButtons);
-                    figma.notify(`Inserted ${createdButtons.length} buttons!`);
-                    message = `I analyzed your request and inserted ${createdButtons.length} buttons that match your needs!`;
-                    figma.ui.postMessage({ type: "response", response: message });
+                    const createdButtons = [];
+
+                    // Create one button for each color
+                    for (let i = 0; i < colors.length; i++) {
+                        const currentColor = colors[i];
+                        let currentVariant = "Blue"; // default base for custom colors
+
+                        // Check if current color is a supported variant
+                        if (currentColor === "blue") {
+                            currentVariant = "Blue";
+                            isCustomColor = false;
+                        } else if (currentColor === "white") {
+                            currentVariant = "White";
+                            isCustomColor = false;
+                        } else {
+                            isCustomColor = true;
+                        }
+
+                        const buttonComponentSet = figma.root.findOne(
+                            (node) => node.type === "COMPONENT_SET" && node.name === "Button"
+                        );
+
+                        if (!buttonComponentSet) {
+                            figma.notify("Component Set 'Button' not found in the file.");
+                            return;
+                        }
+
+                        const buttonVariants = buttonComponentSet.findChildren(
+                            (node) => node.type === "COMPONENT"
+                        );
+
+                        const selectedVariant = buttonVariants.find((v) =>
+                            v.name.includes(currentVariant)
+                        );
+
+                        if (!selectedVariant) {
+                            figma.notify(`Variant '${currentVariant}' not found.`);
+                            continue;
+                        }
+
+                        const buttonInstance = selectedVariant.createInstance();
+                        // Position based on target
+                        if (targetFrame) {
+                            buttonInstance.x = targetFrame.width / 2;
+                            buttonInstance.y = startY + (i * verticalSpacing);
+                            targetFrame.appendChild(buttonInstance);
+                        } else {
+                            buttonInstance.x = figma.viewport.center.x;
+                            buttonInstance.y = startY + (i * verticalSpacing);
+                            figma.currentPage.appendChild(buttonInstance);
+                        }
+                        createdButtons.push(buttonInstance);
+
+                        // Update button text
+                        if (buttonText) {
+                            const textLayers = buttonInstance.findAll(
+                                (node) => node.type === "TEXT"
+                            );
+                            const buttonTextLayer = textLayers.find((t) => t.name === "ButtonLabel");
+
+                            if (buttonTextLayer) {
+                                await figma.loadFontAsync(buttonTextLayer.fontName);
+                                buttonTextLayer.characters = buttonText;
+                            }
+                        }
+
+                        // Apply custom color if needed
+                        if (isCustomColor && buttonInstance.type === "INSTANCE") {
+                            const rgbColor = colorMap[currentColor] || { r: 1, g: 0, b: 0 };
+                            buttonInstance.fills = [{
+                                type: 'SOLID',
+                                color: rgbColor
+                            }];
+                        }
+                    }
+
+                    // Update viewport and notification
+                    if (createdButtons.length > 0) {
+                        if (targetFrame) {
+                            figma.viewport.scrollAndZoomIntoView([targetFrame]);
+                            figma.notify(`Inserted ${createdButtons.length} buttons into ${frameName}!`);
+                            message = `I analyzed your request and inserted ${createdButtons.length} buttons into ${frameName}!`;
+                        } else {
+                            figma.viewport.scrollAndZoomIntoView(createdButtons);
+                            figma.notify(`Inserted ${createdButtons.length} buttons on canvas!`);
+                            message = `I analyzed your request and inserted ${createdButtons.length} buttons on canvas!`;
+                        }
+                        figma.ui.postMessage({ type: "response", response: message });
+                    }
+                } else {
+                    // Handle standard Blue/White format
+                    const [color, text, frameName] = cleanResponse.split("|");
+                    colors = [color.toLowerCase()];
+                    buttonText = text ? text.trim() : "";
+
+                    const buttonComponentSet = figma.root.findOne(
+                        (node) => node.type === "COMPONENT_SET" && node.name === "Button"
+                    );
+
+                    if (!buttonComponentSet) {
+                        figma.notify("Component Set 'Button' not found in the file.");
+                        return;
+                    }
+
+                    const buttonVariants = buttonComponentSet.findChildren(
+                        (node) => node.type === "COMPONENT"
+                    );
+
+                    // Try to find specified frame if any
+                    let targetFrame = null;
+                    if (frameName) {
+                        targetFrame = figma.root.findOne(
+                            (node) => node.type === "FRAME" && node.name === frameName.trim()
+                        );
+                        if (!targetFrame) {
+                            console.log(`Frame "${frameName}" not found, placing on canvas instead`);
+                        }
+                    }
+
+                    // Calculate starting Y position based on target
+                    const startY = targetFrame 
+                        ? (targetFrame.height / 2) - ((colors.length - 1) * verticalSpacing) / 2
+                        : figma.viewport.center.y - ((colors.length - 1) * verticalSpacing) / 2;
+
+                    const createdButtons = [];
+
+                    // Create buttons
+                    for (let i = 0; i < colors.length; i++) {
+                        const currentColor = colors[i];
+                        let currentVariant = "Blue"; // default base for custom colors
+
+                        // Check if current color is a supported variant
+                        if (currentColor === "blue") {
+                            currentVariant = "Blue";
+                            isCustomColor = false;
+                        } else if (currentColor === "white") {
+                            currentVariant = "White";
+                            isCustomColor = false;
+                        } else {
+                            isCustomColor = true;
+                        }
+
+                        const selectedVariant = buttonVariants.find((v) =>
+                            v.name.includes(currentVariant)
+                        );
+
+                        if (!selectedVariant) {
+                            figma.notify(`Variant '${currentVariant}' not found.`);
+                            continue;
+                        }
+
+                        const buttonInstance = selectedVariant.createInstance();
+                        
+                        // Position based on target
+                        if (targetFrame) {
+                            buttonInstance.x = targetFrame.width / 2;
+                            buttonInstance.y = startY + (i * verticalSpacing);
+                            targetFrame.appendChild(buttonInstance);
+                        } else {
+                            buttonInstance.x = figma.viewport.center.x;
+                            buttonInstance.y = startY + (i * verticalSpacing);
+                            figma.currentPage.appendChild(buttonInstance);
+                        }
+                        createdButtons.push(buttonInstance);
+
+                        // Update button text
+                        if (buttonText) {
+                            const textLayers = buttonInstance.findAll(
+                                (node) => node.type === "TEXT"
+                            );
+                            const buttonTextLayer = textLayers.find((t) => t.name === "ButtonLabel");
+
+                            if (buttonTextLayer) {
+                                await figma.loadFontAsync(buttonTextLayer.fontName);
+                                buttonTextLayer.characters = buttonText;
+                            }
+                        }
+
+                        // Apply custom color if needed
+                        if (isCustomColor && buttonInstance.type === "INSTANCE") {
+                            const rgbColor = colorMap[currentColor] || { r: 1, g: 0, b: 0 };
+                            buttonInstance.fills = [{
+                                type: 'SOLID',
+                                color: rgbColor
+                            }];
+                        }
+                    }
+
+                    // Update viewport and notification
+                    if (createdButtons.length > 0) {
+                        if (targetFrame) {
+                            figma.viewport.scrollAndZoomIntoView([targetFrame]);
+                            figma.notify(`Inserted ${createdButtons.length} buttons into ${frameName}!`);
+                            message = `I analyzed your request and inserted ${createdButtons.length} buttons into ${frameName}!`;
+                        } else {
+                            figma.viewport.scrollAndZoomIntoView(createdButtons);
+                            figma.notify(`Inserted ${createdButtons.length} buttons on canvas!`);
+                            message = `I analyzed your request and inserted ${createdButtons.length} buttons on canvas!`;
+                        }
+                        figma.ui.postMessage({ type: "response", response: message });
+                    }
                 }
             }
 
