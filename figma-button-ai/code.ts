@@ -35,15 +35,17 @@ Number of Buttons Decision Rules:
 - If user could define color for surtain number of buttons for example two red and 4 blue (ie insert 2 red and 4 blue buttons), include the number of buttons in your response.
 
 Frame Decision Rules:
-- If user mentions a specific frame (e.g., "in Frame 1", "to Frame 2"), use that frame name
-- If user says "in my frame" or "in the frame", assume they mean "Frame 1"
+- If user mentions any frame by name (e.g., "in Frame 1", "to Frame 2", "inside Frame 3"), use that exact frame name
+- If frame is not found on canvas, place buttons on the main canvas instead
 - If no frame is mentioned, place buttons on the main canvas
 
 Your Response format(Important! Strictly Follow This Format!):
 1. First see if the colors user wants are matching the supported Button types: COLOR|TEXT|FRAME_NAME
 2. If any color is not matching the Button type: CUSTOM|COLOR1,COLOR2,COLOR3|TEXT|FRAME_NAME
 
-Note: If no frame is specified, omit the FRAME_NAME part
+Note: 
+- If no frame is specified, omit the FRAME_NAME part
+- FRAME_NAME should be exactly as mentioned by user (e.g., "Frame 1", "Frame 2", etc.)
 
 Examples:
 - User: "I want a blue button" (Your logic should be: "this is one of button types") return: BLUE|Click Me
@@ -58,7 +60,8 @@ Examples:
 - User: "3 red and 2 white" return: CUSTOM|red,red,red,white,white|Click Me
 - User: "Add a blue button to Frame 1" return: BLUE|Click Me|Frame 1
 - User: "Insert red and white buttons in Frame 2" return: CUSTOM|red,white|Click Me|Frame 2
-- User: "Place 3 green buttons inside my frame" return: CUSTOM|green,green,green|Click Me|Frame 1
+- User: "Place 3 green buttons in Frame 3" return: CUSTOM|green,green,green|Click Me|Frame 3
+- User: "Add blue button" return: BLUE|Click Me
 
 User request: {{userInput}}`;
 
